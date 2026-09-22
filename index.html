@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Rhythm: Mouth Beats</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Varela+Round&display=swap" rel="stylesheet">
+    <!-- Load MediaPipe Face Mesh -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Varela Round', sans-serif;
+            background-color: #0f172a; /* Tailwind slate-900 */
+            color: #f8fafc; /* Tailwind slate-50 */
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrolling */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            max-width: 600px;
+            height: 100vh;
+            max-height: 800px;
+            background-color: #1e293b; /* Tailwind slate-800 */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.4; /* Dim video slightly so game elements pop */
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            transform: scaleX(-1); /* 카메라 방향과 맞추기 위해 좌우 반전 추가 */
+        }
+
+        #face-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            transform: scaleX(-1); /* Keep mesh aligned with mirrored video */
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            pointer-events: none; /* Let clicks pass through to game if needed */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .score-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #38bdf8; /* Tailwind sky-400 */
+            text-align: center;
+        }
+
+        .combo-text {
+            color: #fcd34d; /* Tailwind amber-300 */
+            font-size: 0.8rem;
+            margin-top: 5px;
+            text-shadow: 0 0 5px #f59e0b;
+        }
+
+        .mouth-status {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #94a3b8;
+            transition: all 0.2s;
+        }
+        
+        .mouth-status.open {
+            border-color: #4ade80; /* Tailwind green-400 */
+            box-shadow: 0 0 10px #4ade80;
+            color: #4ade80;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 999px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.7);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        .instruction {
+            margin: 20px 0;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        #feedback-text {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        .feedback-perfect { color: #facc15; text-shadow: 0 0 15px #ca8a04; } /* Yellow */
+        .feedback-good { color: #4ade80; text-shadow: 0 0 15px #16a34a; } /* Green */
+        .feedback-miss { color: #f87171; text-shadow: 0 0 15px #dc2626; } /* Red */
+
+        .loader {
+            border: 8px solid #334155;
+            border-top: 8px solid #38bdf8;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <!-- Camera Video Feed -->
+        <div id="video-container">
+            <video id="input-video" playsinline></video>
+        </div>
+        
+        <!-- Canvas for drawing face landmarks (optional, for visual feedback) -->
+        <canvas id="face-canvas"></canvas>
+
+        <!-- Canvas for the rhythm game notes -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Floating Feedback Text -->
+        <div id="feedback-text" class="pixel-font">PERFECT!</div>
+
+        <!-- In-Game UI Layer -->
+        <div id="ui-layer">
+            <div class="hud-top">
+                <div class="score-box">
+                    <div class="text-sm text-sky-200">SCORE</div>
+                    <div id="score-display" class="pixel-font text-xl mt-1">0</div>
+                    <div id="combo-display" class="combo-text pixel-font hidden">0 COMBO</div>
+                </div>
+                
+                <div id="mouth-indicator" class="mouth-status">
+                    <div class="text-sm">MOUTH</div>
+                    <div id="mouth-state-text" class="font-bold text-lg">CLOSED</div>
+                </div>
+            </div>
+            
+            <!-- Progress bar could go here -->
+            <div class="w-full bg-slate-700 h-2 rounded-full mt-auto mb-2 opacity-70">
+                <div id="progress-bar" class="bg-sky-400 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div id="loading-screen" class="screen">
+            <div class="loader"></div>
+            <h2 class="pixel-font text-2xl mb-4 text-sky-400">LOADING AI</h2>
+            <p class="text-slate-300">Warming up face recognition models...</p>
+            <p class="text-slate-400 text-sm mt-4">Please allow camera access.</p>
+        </div>
+
+        <div id="start-screen" class="screen hidden">
+            <h1 class="pixel-font text-3xl mb-2 text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">FACE RHYTHM</h1>
+            <p class="text-xl mb-6 text-sky-200">Mouth Beats</p>
+            
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-sm">
+                <h3 class="font-bold text-lg mb-2 text-amber-300">How to Play:</h3>
+                <ul class="text-left text-slate-300 space-y-2 mb-4">
+                    <li>1. Position your face in the camera.</li>
+                    <li>2. Notes will fall at <strong class="text-sky-300">random positions</strong>.</li>
+                    <li>3. <strong class="text-white">MOVE YOUR FACE</strong> to align your mouth.</li>
+                    <li>4. <strong class="text-green-400">OPEN YOUR MOUTH</strong> to eat the notes!</li>
+                </ul>
+                
+                <!-- Status check before starting -->
+                <div id="calibration-status" class="text-sm text-yellow-400 mb-2">Waiting to detect face...</div>
+            </div>
+            
+            <button id="start-btn" class="btn pixel-font opacity-50 cursor-not-allowed" disabled>START GAME</button>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden">
+            <h2 class="pixel-font text-3xl mb-4 text-white">TRACK FINISHED</h2>
+            
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col items-center mb-6 w-64">
+                <div class="text-slate-400 mb-1">FINAL SCORE</div>
+                <div id="final-score" class="pixel-font text-4xl text-sky-400 mb-4">0</div>
+                
+                <div class="w-full flex justify-between text-sm mb-1">
+                    <span class="text-yellow-400">Perfects:</span>
+                    <span id="stat-perfect" class="text-white font-bold">0</span>
+                </div>
+                <div class="w-full flex justify-between text-sm mb-1">
+                    <span class="text-green-400">Goods:</span>
+                    <span id="stat-good" class="text-white font-bold">0</span>
+                </div>
+                <div class="w-full flex justify-between text-sm mb-1">
+                    <span class="text-red-400">Misses:</span>
+                    <span id="stat-miss" class="text-white font-bold">0</span>
+                </div>
+                <div class="w-full flex justify-between text-sm mt-2 pt-2 border-t border-slate-600">
+                    <span class="text-slate-300">Max Combo:</span>
+                    <span id="stat-max-combo" class="text-white font-bold">0</span>
+                </div>
+            </div>
+            
+            <button id="restart-btn" class="btn pixel-font">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Variables ---
+        const videoElement = document.getElementById('input-video');
+        const faceCanvas = document.getElementById('face-canvas');
+        const faceCtx = faceCanvas.getContext('2d');
+        const gameCanvas = document.getElementById('game-canvas');
+        const gameCtx = gameCanvas.getContext('2d');
+        
+        // UI Elements
+        const screens = {
+            loading: document.getElementById('loading-screen'),
+            start: document.getElementById('start-screen'),
+            gameOver: document.getElementById('game-over-screen')
+        };
+        const startBtn = document.getElementById('start-btn');
+        const calibrationStatus = document.getElementById('calibration-status');
+        const scoreDisplay = document.getElementById('score-display');
+        const comboDisplay = document.getElementById('combo-display');
+        const mouthIndicator = document.getElementById('mouth-indicator');
+        const mouthStateText = document.getElementById('mouth-state-text');
+        const feedbackText = document.getElementById('feedback-text');
+        const progressBar = document.getElementById('progress-bar');
+
+        // Game State
+        let isFaceDetected = false;
+        let isGameRunning = false;
+        let isMouthOpen = false;
+        let currentMouthX = 0;
+        let currentMouthY = 0;
+        let score = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let stats = { perfect: 0, good: 0, miss: 0 };
+        
+        // --- Audio Context Setup (Synthesized Beeps) ---
+        let audioCtx;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Simple tone generator for feedback
+        function playTone(freq, type = 'sine', duration = 0.1, vol = 0.1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playHitSound(quality) {
+            if (quality === 'perfect') {
+                playTone(880, 'sine', 0.15, 0.2); // High note
+                setTimeout(() => playTone(1100, 'sine', 0.2, 0.2), 50); // Little trill
+            } else if (quality === 'good') {
+                playTone(660, 'sine', 0.1, 0.15);
+            }
+        }
+
+        function playMissSound() {
+            playTone(150, 'sawtooth', 0.2, 0.1);
+            setTimeout(() => playTone(100, 'sawtooth', 0.3, 0.1), 100);
+        }
+
+        // Mouth Landmarks in MediaPipe Face Mesh
+        const UPPER_LIP_INNER = 13;
+        const LOWER_LIP_INNER = 14;
+        
+        // Threshold for determining if mouth is open (distance relative to face size)
+        const MOUTH_OPEN_THRESHOLD = 0.05; 
+        
+        // Initialize MediaPipe FaceMesh
+        const faceMesh = new FaceMesh({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }});
+        
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        // Handle results from FaceMesh
+        faceMesh.onResults(onResults);
+        
+        function onResults(results) {
+            // Resize canvas to match video dimensions
+            faceCanvas.width = videoElement.videoWidth;
+            faceCanvas.height = videoElement.videoHeight;
+            gameCanvas.width = videoElement.videoWidth;
+            gameCanvas.height = videoElement.videoHeight;
+            
+            faceCtx.save();
+            faceCtx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+            
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                if (!isFaceDetected) {
+                    isFaceDetected = true;
+                    // Update start screen UI
+                    calibrationStatus.textContent = "Face Detected! Ready to play.";
+                    calibrationStatus.className = "text-sm text-green-400 mb-2";
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+
+                const landmarks = results.multiFaceLandmarks[0];
+                
+                // Draw mesh for visual feedback (optional, we can just draw lips)
+                // drawConnectors(faceCtx, landmarks, FACEMESH_LIPS, {color: '#E0E0E0'});
+                
+                // --- Mouth Open Detection Logic ---
+                // Get coordinates of inner lips
+                const upperLip = landmarks[UPPER_LIP_INNER];
+                const lowerLip = landmarks[LOWER_LIP_INNER];
+                
+                // Get face height for normalization (using forehead and chin roughly)
+                const faceTop = landmarks[10]; 
+                const faceBottom = landmarks[152];
+                const faceHeight = Math.abs(faceBottom.y - faceTop.y);
+                
+                // Calculate distance between lips
+                const lipDistance = Math.abs(lowerLip.y - upperLip.y);
+                
+                // Normalize by face height so distance from camera doesn't matter as much
+                const normalizedMouthOpen = lipDistance / faceHeight;
+                
+                const wasMouthOpen = isMouthOpen;
+                isMouthOpen = normalizedMouthOpen > MOUTH_OPEN_THRESHOLD;
+                
+                // Calculate center of mouth for collision
+                currentMouthX = ((upperLip.x + lowerLip.x) / 2) * faceCanvas.width;
+                currentMouthY = ((upperLip.y + lowerLip.y) / 2) * faceCanvas.height;
+                
+                // Draw catcher zone on face canvas
+                faceCtx.beginPath();
+                faceCtx.arc(currentMouthX, currentMouthY, 40, 0, 2 * Math.PI);
+                faceCtx.strokeStyle = isMouthOpen ? '#4ade80' : 'rgba(255, 255, 255, 0.4)';
+                faceCtx.lineWidth = 4;
+                faceCtx.setLineDash(isMouthOpen ? [] : [10, 10]);
+                faceCtx.stroke();
+                faceCtx.setLineDash([]);
+                
+                // Visual Indicator Updates
+                if (isMouthOpen) {
+                    mouthIndicator.classList.add('open');
+                    mouthStateText.textContent = "OPEN";
+                    mouthStateText.className = "font-bold text-lg text-green-400";
+                } else {
+                    mouthIndicator.classList.remove('open');
+                    mouthStateText.textContent = "CLOSED";
+                    mouthStateText.className = "font-bold text-lg text-slate-300";
+                }
+
+                // Optional: Draw debug dots on lips
+                /*
+                faceCtx.fillStyle = isMouthOpen ? '#4ade80' : '#f87171';
+                faceCtx.beginPath();
+                faceCtx.arc(upperLip.x * faceCanvas.width, upperLip.y * faceCanvas.height, 3, 0, 2 * Math.PI);
+                faceCtx.fill();
+                faceCtx.beginPath();
+                faceCtx.arc(lowerLip.x * faceCanvas.width, lowerLip.y * faceCanvas.height, 3, 0, 2 * Math.PI);
+                faceCtx.fill();
+                */
+                
+            } else {
+                if (isFaceDetected) {
+                    isFaceDetected = false;
+                    calibrationStatus.textContent = "Face lost. Please look at the camera.";
+                    calibrationStatus.className = "text-sm text-red-400 mb-2";
+                    if (!isGameRunning) {
+                        startBtn.disabled = true;
+                        startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                }
+                isMouthOpen = false;
+            }
+            faceCtx.restore();
+        }
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await faceMesh.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+
+        // Start camera and handle loading screen
+        camera.start().then(() => {
+            // Once camera starts, we wait for the first face detection to enable start button
+            setTimeout(() => {
+                 screens.loading.classList.add('hidden');
+                 screens.start.classList.remove('hidden');
+            }, 1500); // Artificial slight delay to ensure everything is ready
+        }).catch(err => {
+            console.error("Camera access error:", err);
+            screens.loading.innerHTML = `
+                <h2 class="pixel-font text-xl text-red-400 mb-4">CAMERA ERROR</h2>
+                <p>Could not access webcam. Please allow permissions.</p>
+            `;
+        });
+
+        
+        let notes = [];
+        let gameStartTime = 0;
+        let lastFrameTime = 0;
+        let animationId;
+        
+        // Game Settings
+        const NOTE_SPEED = 300; // Pixels per second
+        const CATCH_RADIUS = 60; // Distance to eat note
+        const TRACK_DURATION = 30000; // 30 seconds game
+
+        // Note object constructor
+        class Note {
+            constructor(spawnTime) {
+                this.spawnTime = spawnTime;
+                this.y = -50; // Start above screen
+                this.normalizedX = 0.2 + Math.random() * 0.6; // Random X between 20% and 80% width
+                this.x = 0;
+                this.active = true;
+                this.hit = false;
+            }
+
+            update(currentTime) {
+                // Not used anymore, calculating in gameLoop based on elapsed time
+            }
+
+            draw(ctx) {
+                if (!this.active || this.hit) return;
+                
+                ctx.save();
+                
+                // Draw a nice glowing circle note
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+                
+                // Gradient fill
+                const gradient = ctx.createRadialGradient(this.x, this.y, 5, this.x, this.y, 20);
+                gradient.addColorStop(0, '#bae6fd'); // sky-200
+                gradient.addColorStop(0.7, '#38bdf8'); // sky-400
+                gradient.addColorStop(1, 'rgba(56, 189, 248, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Outline
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner musical note symbol instead of mouth
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('♪', this.x, this.y + 2);
+                
+                ctx.restore();
+            }
+        }
+
+
+        function generateTrack() {
+            notes = [];
+            // Generate notes based on a simple rhythm pattern
+            // A note roughly every 0.8 to 1.5 seconds
+            let time = 2000; // First note after 2s
+            while (time < TRACK_DURATION - 2000) {
+                notes.push(new Note(time));
+                
+                // Randomize gap for rhythm
+                const gap = 500 + Math.random() * 1000; 
+                time += gap;
+            }
+        }
+
+        function handleHit(quality, hitX, hitY) {
+            if (quality === 'perfect') {
+                score += 100;
+                combo++;
+                stats.perfect++;
+                showFeedback("PERFECT!", "feedback-perfect", hitX, hitY);
+                playHitSound('perfect');
+            } else if (quality === 'good') {
+                score += 50;
+                combo++;
+                stats.good++;
+                showFeedback("GOOD", "feedback-good", hitX, hitY);
+                playHitSound('good');
+            }
+            
+            if (combo > maxCombo) maxCombo = combo;
+            updateUI();
+        }
+
+        function handleMiss() {
+            combo = 0;
+            stats.miss++;
+            showFeedback("MISS", "feedback-miss", gameCanvas.width / 2, gameCanvas.height - 100);
+            playMissSound();
+            updateUI();
+        }
+
+        function showFeedback(text, className, x, y) {
+            feedbackText.textContent = text;
+            feedbackText.className = `pixel-font ${className}`;
+            
+            // UI 요소들은 좌우 반전이 되어있지 않으므로, 화면에 표시할 X 좌표를 반전시켜줍니다.
+            const visualX = gameCanvas.clientWidth - (x * (gameCanvas.clientWidth / gameCanvas.width));
+            const visualY = y * (gameCanvas.clientHeight / gameCanvas.height);
+
+            feedbackText.style.left = `${visualX}px`;
+            feedbackText.style.top = `${visualY}px`;
+            
+            // Reset animation
+            feedbackText.style.opacity = 0;
+            feedbackText.style.transform = "translate(-50%, -50%) scale(0.8)";
+            
+            // Force reflow
+            void feedbackText.offsetWidth; 
+            
+            // Animate in
+            feedbackText.style.opacity = 1;
+            feedbackText.style.transform = "translate(-50%, calc(-50% - 30px)) scale(1.1)";
+            feedbackText.style.transition = "all 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+            
+            // Fade out
+            setTimeout(() => {
+                feedbackText.style.opacity = 0;
+                feedbackText.style.transform = "translate(-50%, calc(-50% - 50px)) scale(1)";
+                feedbackText.style.transition = "all 0.3s ease-in";
+            }, 400);
+        }
+
+        function updateUI() {
+            scoreDisplay.textContent = score;
+            
+            if (combo > 2) {
+                comboDisplay.textContent = `${combo} COMBO`;
+                comboDisplay.classList.remove('hidden');
+                
+                // Pulse effect on high combos
+                if (combo % 10 === 0) {
+                    comboDisplay.style.transform = "scale(1.2)";
+                    setTimeout(() => comboDisplay.style.transform = "scale(1)", 100);
+                }
+            } else {
+                comboDisplay.classList.add('hidden');
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!isGameRunning) return;
+            
+            if (!gameStartTime) gameStartTime = timestamp;
+            const elapsedTime = timestamp - gameStartTime;
+            
+            // Clear game canvas
+            gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+            
+            // Update Progress Bar
+            const progress = Math.min((elapsedTime / TRACK_DURATION) * 100, 100);
+            progressBar.style.width = `${progress}%`;
+            
+            // Update and draw notes
+            for (let i = 0; i < notes.length; i++) {
+                let note = notes[i];
+                
+                if (note.active && !note.hit) {
+                    note.x = note.normalizedX * gameCanvas.width;
+                    note.y = ((elapsedTime - note.spawnTime) / 1000) * NOTE_SPEED;
+                    
+                    // Draw note
+                    note.draw(gameCtx);
+                    
+                    // Collision detection with mouth (Catcher zone)
+                    if (isMouthOpen) {
+                        const distance = Math.hypot(note.x - currentMouthX, note.y - currentMouthY);
+                        if (distance < CATCH_RADIUS) {
+                            note.hit = true;
+                            
+                            // Perfect if caught very close to center
+                            if (distance < CATCH_RADIUS * 0.4) {
+                                handleHit('perfect', note.x, note.y);
+                            } else {
+                                handleHit('good', note.x, note.y);
+                            }
+                        }
+                    }
+                    
+                    // Check for missed notes (went past bottom of screen)
+                    if (note.y > gameCanvas.height + 50) {
+                        note.active = false; // Mark as missed/inactive
+                        handleMiss();
+                    }
+                }
+            }
+            
+            // Check End Game Condition
+            if (elapsedTime >= TRACK_DURATION) {
+                endGame();
+                return;
+            }
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            initAudio(); // Require user gesture to start audio
+            
+            // Reset state
+            score = 0;
+            combo = 0;
+            maxCombo = 0;
+            stats = { perfect: 0, good: 0, miss: 0 };
+            updateUI();
+            
+            // Ensure canvas sizes are set
+            gameCanvas.width = videoElement.videoWidth || 640;
+            gameCanvas.height = videoElement.videoHeight || 480;
+            
+            // Setup DOM
+            screens.start.classList.add('hidden');
+            screens.gameOver.classList.add('hidden');
+            feedbackText.style.opacity = 0;
+            
+            // Prepare game
+            generateTrack();
+            isGameRunning = true;
+            gameStartTime = null; // Will be set in first loop
+            
+            // Start loop
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            cancelAnimationFrame(animationId);
+            gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+            
+            // Populate Game Over Screen
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('stat-perfect').textContent = stats.perfect;
+            document.getElementById('stat-good').textContent = stats.good;
+            document.getElementById('stat-miss').textContent = stats.miss;
+            document.getElementById('stat-max-combo').textContent = maxCombo;
+            
+            screens.gameOver.classList.remove('hidden');
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+             if (videoElement.videoWidth) {
+                 gameCanvas.width = videoElement.videoWidth;
+                 gameCanvas.height = videoElement.videoHeight;
+             }
+        });
+
+    </script>
+</body>
+</html>
