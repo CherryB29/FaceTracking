@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Rhythm: Mouth Beats</title>
+    <title>과일 냠냠</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Varela+Round&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Varela+Round&display=swap" rel="stylesheet">
     <!-- Load MediaPipe Face Mesh -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -15,8 +15,8 @@
     <style>
         body {
             font-family: 'Varela Round', sans-serif;
-            background-color: #0f172a; /* Tailwind slate-900 */
-            color: #f8fafc; /* Tailwind slate-50 */
+            background-color: #fdf2f8; /* 귀여운 핑크 배경 */
+            color: #334155;
             margin: 0;
             padding: 0;
             overflow: hidden; /* Prevent scrolling */
@@ -26,8 +26,8 @@
             height: 100vh;
         }
 
-        .pixel-font {
-            font-family: 'Press Start 2P', cursive;
+        .cute-font {
+            font-family: 'Jua', sans-serif;
         }
 
         #game-container {
@@ -36,11 +36,12 @@
             max-width: 600px;
             height: 100vh;
             max-height: 800px;
-            background-color: #1e293b; /* Tailwind slate-800 */
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background-color: #fff1f2; /* 화사한 배경 */
+            box-shadow: 0 0 30px rgba(244, 114, 182, 0.3);
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            border-radius: 20px;
         }
 
         #video-container {
@@ -50,7 +51,7 @@
             width: 100%;
             height: 100%;
             z-index: 0;
-            opacity: 0.4; /* Dim video slightly so game elements pop */
+            opacity: 0.6; /* 카메라를 좀 더 밝게 */
         }
 
         video {
@@ -67,6 +68,7 @@
             width: 100%;
             height: 100%;
             z-index: 10;
+            object-fit: cover; /* 캔버스 오프셋 불일치 해결! */
             transform: scaleX(-1); /* 카메라 방향과 맞추기 위해 좌우 반전 추가 */
         }
 
@@ -77,6 +79,7 @@
             width: 100%;
             height: 100%;
             z-index: 5;
+            object-fit: cover; /* 캔버스 오프셋 불일치 해결! */
             transform: scaleX(-1); /* Keep mesh aligned with mirrored video */
         }
 
@@ -117,17 +120,28 @@
         }
 
         .mouth-status {
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(255, 255, 255, 0.8);
             padding: 10px 15px;
-            border-radius: 8px;
-            border: 2px solid #94a3b8;
+            border-radius: 12px;
+            border: 3px solid #cbd5e1;
             transition: all 0.2s;
+            color: #475569;
         }
         
         .mouth-status.open {
-            border-color: #4ade80; /* Tailwind green-400 */
-            box-shadow: 0 0 10px #4ade80;
-            color: #4ade80;
+            border-color: #f472b6; /* 핑크색 강조 */
+            box-shadow: 0 0 15px #fbcfe8;
+            color: #ec4899;
+        }
+
+        .feedback-boom { color: #ef4444; text-shadow: 0 0 10px white; font-size: 4rem !important; }
+        
+        #snapshot-img {
+            transition: transform 0.3s ease;
+            border-radius: 20px;
+        }
+        #snapshot-img:hover {
+            transform: scale(1.05) rotate(0deg);
         }
 
         .screen {
@@ -136,7 +150,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(15, 23, 42, 0.9);
+            background: rgba(255, 255, 255, 0.85); /* 반투명 흰색 배경 */
+            backdrop-filter: blur(5px);
             z-index: 30;
             display: flex;
             flex-direction: column;
@@ -152,32 +167,33 @@
         }
 
         .btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #f472b6, #ec4899); /* 귀여운 핑크 그라데이션 */
             color: white;
             border: none;
             padding: 15px 30px;
-            font-size: 1.2rem;
-            border-radius: 999px;
+            font-size: 1.5rem;
+            border-radius: 25px; /* 더 둥글게 */
             cursor: pointer;
             margin-top: 20px;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
+            box-shadow: 0 6px 0 #be185d; /* 귀여운 3D 그림자 */
             transition: transform 0.1s, box-shadow 0.1s;
         }
 
         .btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.7);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #be185d;
         }
 
         .btn:active {
-            transform: scale(0.95);
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #be185d;
         }
         
         .instruction {
             margin: 20px 0;
             font-size: 1.1rem;
             line-height: 1.5;
-            color: #cbd5e1;
+            color: #475569;
         }
 
         #feedback-text {
@@ -199,8 +215,8 @@
         .feedback-miss { color: #f87171; text-shadow: 0 0 15px #dc2626; } /* Red */
 
         .loader {
-            border: 8px solid #334155;
-            border-top: 8px solid #38bdf8;
+            border: 8px solid #f3f4f6;
+            border-top: 8px solid #f472b6; /* 핑크 로더 */
             border-radius: 50%;
             width: 60px;
             height: 60px;
@@ -231,82 +247,117 @@
         <canvas id="game-canvas"></canvas>
 
         <!-- Floating Feedback Text -->
-        <div id="feedback-text" class="pixel-font">PERFECT!</div>
+        <div id="feedback-text" class="cute-font">PERFECT!</div>
 
         <!-- In-Game UI Layer -->
         <div id="ui-layer">
             <div class="hud-top">
-                <div class="score-box">
-                    <div class="text-sm text-sky-200">SCORE</div>
-                    <div id="score-display" class="pixel-font text-xl mt-1">0</div>
-                    <div id="combo-display" class="combo-text pixel-font hidden">0 COMBO</div>
+                <div class="score-box bg-white/80 border-2 border-pink-400">
+                    <div class="text-sm text-pink-500 font-bold">점수</div>
+                    <div id="score-display" class="cute-font text-3xl mt-1 text-slate-700">0</div>
+                    <div id="combo-display" class="combo-text cute-font hidden text-orange-400">0 COMBO</div>
                 </div>
                 
                 <div id="mouth-indicator" class="mouth-status">
-                    <div class="text-sm">MOUTH</div>
-                    <div id="mouth-state-text" class="font-bold text-lg">CLOSED</div>
+                    <div class="text-sm font-bold">입 상태</div>
+                    <div id="mouth-state-text" class="cute-font text-2xl mt-1">닫힘</div>
                 </div>
             </div>
             
             <!-- Progress bar could go here -->
-            <div class="w-full bg-slate-700 h-2 rounded-full mt-auto mb-2 opacity-70">
-                <div id="progress-bar" class="bg-sky-400 h-2 rounded-full" style="width: 0%"></div>
+            <div class="w-full bg-white/50 h-3 border-2 border-pink-200 rounded-full mt-auto mb-2">
+                <div id="progress-bar" class="bg-gradient-to-r from-pink-400 to-rose-400 h-full rounded-full" style="width: 0%"></div>
             </div>
         </div>
 
-        <div id="loading-screen" class="screen">
+        <div id="loading-screen" class="screen hidden">
             <div class="loader"></div>
-            <h2 class="pixel-font text-2xl mb-4 text-sky-400">LOADING AI</h2>
-            <p class="text-slate-300">Warming up face recognition models...</p>
-            <p class="text-slate-400 text-sm mt-4">Please allow camera access.</p>
+            <h2 class="cute-font text-3xl mb-4 text-pink-500">AI 준비중...</h2>
+            <p class="text-slate-600 font-bold">카메라와 얼굴 인식을 준비하고 있습니다.</p>
+            <p class="text-pink-400 font-bold text-lg mt-4">얼굴을 화면 중앙에 비춰주세요!</p>
         </div>
 
-        <div id="start-screen" class="screen hidden">
-            <h1 class="pixel-font text-3xl mb-2 text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">FACE RHYTHM</h1>
-            <p class="text-xl mb-6 text-sky-200">Mouth Beats</p>
+        <!-- 로비 화면은 처음에 가려둡니다 -->
+        <div id="lobby-screen" class="screen hidden">
+            <h1 class="cute-font text-6xl mb-6 text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500 drop-shadow-md">과일 냠냠</h1>
+            <div class="text-6xl mb-10 drop-shadow-lg">🍎🍌🍉💣</div>
             
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-sm">
-                <h3 class="font-bold text-lg mb-2 text-amber-300">How to Play:</h3>
-                <ul class="text-left text-slate-300 space-y-2 mb-4">
-                    <li>1. Position your face in the camera.</li>
-                    <li>2. Notes will fall at <strong class="text-sky-300">random positions</strong>.</li>
-                    <li>3. <strong class="text-white">MOVE YOUR FACE</strong> to align your mouth.</li>
-                    <li>4. <strong class="text-green-400">OPEN YOUR MOUTH</strong> to eat the notes!</li>
+            <button id="btn-to-difficulty" class="btn cute-font mb-4 w-56">게임 시작</button>
+            <button id="btn-to-help" class="btn cute-font w-56 !bg-gradient-to-r !from-sky-400 !to-blue-500 !shadow-[0_6px_0_#0284c7]">도움말</button>
+        </div>
+
+        <div id="help-screen" class="screen hidden">
+            <h2 class="cute-font text-4xl mb-4 text-pink-500">게임 방법</h2>
+            <div class="bg-white/90 p-6 rounded-3xl border-4 border-pink-200 max-w-sm mb-6 shadow-xl">
+                <ul class="text-left text-slate-700 space-y-4 font-bold">
+                    <li>1. 화면 중앙에 얼굴을 맞추세요.</li>
+                    <li>2. <strong class="text-rose-500 text-lg">과일🍎</strong>이 입술 근처로 오면 입을 벌려 냠냠!</li>
+                    <li>3. <strong class="text-slate-800 text-lg">폭탄💣</strong>이 떨어질 때 입을 벌리면 펑! 감점!</li>
+                    <li>4. 📸 집중할 때 <strong class="text-orange-500">기습 사진 촬영</strong>이 있습니다 ㅋㅋ</li>
                 </ul>
-                
-                <!-- Status check before starting -->
-                <div id="calibration-status" class="text-sm text-yellow-400 mb-2">Waiting to detect face...</div>
             </div>
-            
-            <button id="start-btn" class="btn pixel-font opacity-50 cursor-not-allowed" disabled>START GAME</button>
+            <button id="btn-close-help" class="btn cute-font w-48">닫기</button>
         </div>
 
-        <div id="game-over-screen" class="screen hidden">
-            <h2 class="pixel-font text-3xl mb-4 text-white">TRACK FINISHED</h2>
+        <div id="difficulty-screen" class="screen hidden">
+            <h2 class="cute-font text-4xl mb-8 text-slate-700">난이도 선택</h2>
+            <div class="flex flex-col gap-5 w-56">
+                <button class="btn difficulty-btn cute-font !bg-gradient-to-r !from-green-400 !to-emerald-500 !shadow-[0_6px_0_#059669]" data-diff="easy">쉬움 (느릿느릿)</button>
+                <button class="btn difficulty-btn cute-font !bg-gradient-to-r !from-amber-400 !to-orange-500 !shadow-[0_6px_0_#d97706]" data-diff="normal">보통 (적당해)</button>
+                <button class="btn difficulty-btn cute-font !bg-gradient-to-r !from-rose-500 !to-red-600 !shadow-[0_6px_0_#e11d48]" data-diff="hard">어려움 (매워요)</button>
+            </div>
+        </div>
+
+        <div id="consent-screen" class="screen hidden">
+            <h2 class="cute-font text-4xl mb-6 text-rose-500">⚠️ 동의서 ⚠️</h2>
+            <div class="bg-white/90 p-6 rounded-3xl border-4 border-rose-200 max-w-sm mb-8 text-left shadow-lg">
+                <p class="text-slate-700 mb-4 font-bold leading-relaxed">
+                    본 게임은 플레이어의 입 모양을 인식하기 위해 <strong class="text-rose-500">카메라 접근 권한</strong>이 필수적입니다. 
+                </p>
+                <p class="text-slate-700 mb-4 font-bold leading-relaxed">
+                    또한, 게임 도중 플레이어의 집중하는 모습을 담기 위해 <strong class="text-rose-500">기습 화면 캡처</strong>가 진행됩니다. 
+                </p>
+                <p class="text-sm text-slate-500 font-bold">
+                    * 캡처된 사진은 서버로 전송되지 않으며, 게임 오버 화면에서만 보여집니다.
+                </p>
+            </div>
+            <button id="btn-agree-start" class="btn cute-font w-64 !bg-gradient-to-r !from-indigo-400 !to-purple-500 !shadow-[0_6px_0_#6b21a8]">동의하고 냠냠하기</button>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden overflow-y-auto">
+            <h2 class="cute-font text-5xl mb-4 text-rose-500 mt-8 drop-shadow-md">게임 종료!</h2>
             
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col items-center mb-6 w-64">
-                <div class="text-slate-400 mb-1">FINAL SCORE</div>
-                <div id="final-score" class="pixel-font text-4xl text-sky-400 mb-4">0</div>
+            <div id="snapshot-container" class="mb-6 hidden flex flex-col items-center">
+                <div class="text-lg text-slate-700 mb-2 cute-font bg-white px-4 py-1 rounded-full shadow border-2 border-pink-200">📸 흑역사 박제 📸</div>
+                <img id="snapshot-img" class="w-80 max-w-[90vw] h-auto rounded-2xl border-8 border-white shadow-2xl transform -rotate-2">
+            </div>
+
+            <div class="bg-white/90 p-5 rounded-3xl border-4 border-pink-200 flex flex-col items-center mb-6 w-72 shadow-xl">
+                <div class="text-slate-500 font-bold mb-1">최종 점수</div>
+                <div id="final-score" class="cute-font text-5xl text-rose-500 mb-4 drop-shadow">0</div>
                 
-                <div class="w-full flex justify-between text-sm mb-1">
-                    <span class="text-yellow-400">Perfects:</span>
-                    <span id="stat-perfect" class="text-white font-bold">0</span>
+                <div class="w-full flex justify-between text-base font-bold mb-2">
+                    <span class="text-green-500">과일 냠냠:</span>
+                    <span id="stat-perfect" class="text-slate-700">0</span>
                 </div>
-                <div class="w-full flex justify-between text-sm mb-1">
-                    <span class="text-green-400">Goods:</span>
-                    <span id="stat-good" class="text-white font-bold">0</span>
+                <div class="w-full flex justify-between text-base font-bold mb-2">
+                    <span class="text-red-500">폭탄 펑!:</span>
+                    <span id="stat-bomb" class="text-slate-700">0</span>
                 </div>
-                <div class="w-full flex justify-between text-sm mb-1">
-                    <span class="text-red-400">Misses:</span>
-                    <span id="stat-miss" class="text-white font-bold">0</span>
+                <div class="w-full flex justify-between text-base font-bold mb-2">
+                    <span class="text-slate-400">놓친 과일:</span>
+                    <span id="stat-miss" class="text-slate-700">0</span>
                 </div>
-                <div class="w-full flex justify-between text-sm mt-2 pt-2 border-t border-slate-600">
-                    <span class="text-slate-300">Max Combo:</span>
-                    <span id="stat-max-combo" class="text-white font-bold">0</span>
+                <div class="w-full flex justify-between text-base font-bold mt-3 pt-3 border-t-2 border-pink-100">
+                    <span class="text-orange-400">최대 콤보:</span>
+                    <span id="stat-max-combo" class="text-slate-700">0</span>
                 </div>
             </div>
             
-            <button id="restart-btn" class="btn pixel-font">PLAY AGAIN</button>
+            <div class="flex gap-4 mb-8">
+                <button id="restart-btn" class="btn cute-font text-xl px-6 !bg-gradient-to-r !from-slate-400 !to-slate-500 !shadow-[0_6px_0_#334155]">다시하기</button>
+                <button id="share-btn" class="btn cute-font text-xl px-8 bg-gradient-to-r from-pink-500 to-rose-500">공유하기 🚀</button>
+            </div>
         </div>
     </div>
 
@@ -321,11 +372,21 @@
         // UI Elements
         const screens = {
             loading: document.getElementById('loading-screen'),
-            start: document.getElementById('start-screen'),
+            lobby: document.getElementById('lobby-screen'),
+            help: document.getElementById('help-screen'),
+            difficulty: document.getElementById('difficulty-screen'),
+            consent: document.getElementById('consent-screen'),
             gameOver: document.getElementById('game-over-screen')
         };
-        const startBtn = document.getElementById('start-btn');
-        const calibrationStatus = document.getElementById('calibration-status');
+        
+        // --- 통합 화면 관리 함수 추가 ---
+        function changeScreen(screenElement) {
+            Object.values(screens).forEach(s => {
+                if(s) s.classList.add('hidden');
+            });
+            if(screenElement) screenElement.classList.remove('hidden');
+        }
+
         const scoreDisplay = document.getElementById('score-display');
         const comboDisplay = document.getElementById('combo-display');
         const mouthIndicator = document.getElementById('mouth-indicator');
@@ -342,7 +403,12 @@
         let score = 0;
         let combo = 0;
         let maxCombo = 0;
-        let stats = { perfect: 0, good: 0, miss: 0 };
+        let stats = { perfect: 0, bomb: 0, miss: 0 };
+        
+        // Snapshot variables
+        let snapshotDataUrl = null;
+        let snapshotTaken = false;
+        let snapshotTime = 0;
         
         // --- Audio Context Setup (Synthesized Beeps) ---
         let audioCtx;
@@ -389,6 +455,11 @@
             setTimeout(() => playTone(100, 'sawtooth', 0.3, 0.1), 100);
         }
 
+        function playBombSound() {
+            playTone(100, 'square', 0.3, 0.3);
+            setTimeout(() => playTone(50, 'sawtooth', 0.5, 0.4), 100);
+        }
+
         // Mouth Landmarks in MediaPipe Face Mesh
         const UPPER_LIP_INNER = 13;
         const LOWER_LIP_INNER = 14;
@@ -412,23 +483,25 @@
         faceMesh.onResults(onResults);
         
         function onResults(results) {
-            // Resize canvas to match video dimensions
-            faceCanvas.width = videoElement.videoWidth;
-            faceCanvas.height = videoElement.videoHeight;
-            gameCanvas.width = videoElement.videoWidth;
-            gameCanvas.height = videoElement.videoHeight;
+            // 카메라 해상도가 변경되었을 때만 캔버스 크기를 조절 (매 프레임마다 리셋되면 화면이 지워지는 문제 수정!)
+            if (faceCanvas.width !== videoElement.videoWidth || faceCanvas.height !== videoElement.videoHeight) {
+                faceCanvas.width = videoElement.videoWidth;
+                faceCanvas.height = videoElement.videoHeight;
+                gameCanvas.width = videoElement.videoWidth;
+                gameCanvas.height = videoElement.videoHeight;
+            }
             
             faceCtx.save();
             faceCtx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
             
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                if (!isFaceDetected) {
-                    isFaceDetected = true;
-                    // Update start screen UI
-                    calibrationStatus.textContent = "Face Detected! Ready to play.";
-                    calibrationStatus.className = "text-sm text-green-400 mb-2";
-                    startBtn.disabled = false;
-                    startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                isFaceDetected = true;
+                
+                // 얼굴 인식 후 로딩 대기 중이었다면 게임 시작
+                if (waitingForFaceToStart) {
+                    waitingForFaceToStart = false;
+                    changeScreen(null); // 모든 스크린 끄고 게임 화면만 보이게
+                    startGame();
                 }
 
                 const landmarks = results.multiFaceLandmarks[0];
@@ -462,7 +535,7 @@
                 // Draw catcher zone on face canvas
                 faceCtx.beginPath();
                 faceCtx.arc(currentMouthX, currentMouthY, 40, 0, 2 * Math.PI);
-                faceCtx.strokeStyle = isMouthOpen ? '#4ade80' : 'rgba(255, 255, 255, 0.4)';
+                faceCtx.strokeStyle = isMouthOpen ? '#4ade80' : '#9ca3af'; // 초록색(벌림) 또는 회색(닫힘)
                 faceCtx.lineWidth = 4;
                 faceCtx.setLineDash(isMouthOpen ? [] : [10, 10]);
                 faceCtx.stroke();
@@ -471,12 +544,12 @@
                 // Visual Indicator Updates
                 if (isMouthOpen) {
                     mouthIndicator.classList.add('open');
-                    mouthStateText.textContent = "OPEN";
-                    mouthStateText.className = "font-bold text-lg text-green-400";
+                    mouthStateText.textContent = "아~ (열림)";
+                    mouthStateText.className = "cute-font text-2xl text-pink-500 mt-1";
                 } else {
                     mouthIndicator.classList.remove('open');
-                    mouthStateText.textContent = "CLOSED";
-                    mouthStateText.className = "font-bold text-lg text-slate-300";
+                    mouthStateText.textContent = "음! (닫힘)";
+                    mouthStateText.className = "cute-font text-2xl text-slate-400 mt-1";
                 }
 
                 // Optional: Draw debug dots on lips
@@ -491,42 +564,36 @@
                 */
                 
             } else {
-                if (isFaceDetected) {
-                    isFaceDetected = false;
-                    calibrationStatus.textContent = "Face lost. Please look at the camera.";
-                    calibrationStatus.className = "text-sm text-red-400 mb-2";
-                    if (!isGameRunning) {
-                        startBtn.disabled = true;
-                        startBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    }
-                }
+                isFaceDetected = false;
                 isMouthOpen = false;
             }
             faceCtx.restore();
         }
 
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await faceMesh.send({image: videoElement});
-            },
-            width: 640,
-            height: 480
-        });
+        let waitingForFaceToStart = false;
+        let cameraInitialized = false;
 
-        // Start camera and handle loading screen
-        camera.start().then(() => {
-            // Once camera starts, we wait for the first face detection to enable start button
-            setTimeout(() => {
-                 screens.loading.classList.add('hidden');
-                 screens.start.classList.remove('hidden');
-            }, 1500); // Artificial slight delay to ensure everything is ready
-        }).catch(err => {
-            console.error("Camera access error:", err);
-            screens.loading.innerHTML = `
-                <h2 class="pixel-font text-xl text-red-400 mb-4">CAMERA ERROR</h2>
-                <p>Could not access webcam. Please allow permissions.</p>
-            `;
-        });
+        function initCamera() {
+            if (cameraInitialized) return;
+            
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await faceMesh.send({image: videoElement});
+                },
+                width: 640,
+                height: 480
+            });
+
+            camera.start().then(() => {
+                cameraInitialized = true;
+            }).catch(err => {
+                console.error("Camera access error:", err);
+                screens.loading.innerHTML = `
+                    <h2 class="cute-font text-2xl text-red-500 mb-4">카메라 오류 ㅠㅠ</h2>
+                    <p class="font-bold text-slate-600">카메라 접근 권한을 허용해주세요!</p>
+                `;
+            });
+        }
 
         
         let notes = [];
@@ -535,12 +602,14 @@
         let animationId;
         
         // Game Settings
-        const NOTE_SPEED = 300; // Pixels per second
+        let NOTE_SPEED = 350; // Pixels per second (modified by difficulty)
         const CATCH_RADIUS = 60; // Distance to eat note
         const TRACK_DURATION = 30000; // 30 seconds game
+        let currentDifficulty = 'normal';
 
-        // Note object constructor
-        class Note {
+        const FRUITS = ['🍎', '🍌', '🍉', '🍇', '🍓', '🍊'];
+
+        class FallingItem {
             constructor(spawnTime) {
                 this.spawnTime = spawnTime;
                 this.y = -50; // Start above screen
@@ -548,6 +617,14 @@
                 this.x = 0;
                 this.active = true;
                 this.hit = false;
+                
+                // 20% chance to be a bomb
+                this.isBomb = Math.random() < 0.2;
+                if (!this.isBomb) {
+                    this.emoji = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+                } else {
+                    this.emoji = '💣';
+                }
             }
 
             update(currentTime) {
@@ -559,32 +636,18 @@
                 
                 ctx.save();
                 
-                // Draw a nice glowing circle note
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
-                
-                // Gradient fill
-                const gradient = ctx.createRadialGradient(this.x, this.y, 5, this.x, this.y, 20);
-                gradient.addColorStop(0, '#bae6fd'); // sky-200
-                gradient.addColorStop(0.7, '#38bdf8'); // sky-400
-                gradient.addColorStop(1, 'rgba(56, 189, 248, 0)');
-                
-                ctx.fillStyle = gradient;
-                ctx.fill();
-                
-                // Outline
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                // Inner musical note symbol instead of mouth
-                ctx.fillStyle = '#0f172a';
-                ctx.font = '20px Arial';
+                // 도형 없이 이모지만 큼직하게 그립니다!
+                ctx.font = '60px Arial'; // 이모지 크기를 훨씬 크게!
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('♪', this.x, this.y + 2);
+                
+                // 이모지 뒤에 살짝 그림자를 넣어 카메라 배경과 분리시킵니다
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 3;
+
+                ctx.fillText(this.emoji, this.x, this.y);
                 
                 ctx.restore();
             }
@@ -593,48 +656,79 @@
 
         function generateTrack() {
             notes = [];
-            // Generate notes based on a simple rhythm pattern
-            // A note roughly every 0.8 to 1.5 seconds
+            
+            let gapBase = 500, gapRandom = 800;
+            
+            // Set speed and spawn rate based on difficulty
+            if (currentDifficulty === 'easy') {
+                NOTE_SPEED = 200;
+                gapBase = 800;
+                gapRandom = 1000;
+            } else if (currentDifficulty === 'normal') {
+                NOTE_SPEED = 350;
+                gapBase = 500;
+                gapRandom = 800;
+            } else if (currentDifficulty === 'hard') {
+                NOTE_SPEED = 500;
+                gapBase = 300;
+                gapRandom = 500;
+            }
+
             let time = 2000; // First note after 2s
             while (time < TRACK_DURATION - 2000) {
-                notes.push(new Note(time));
+                notes.push(new FallingItem(time));
                 
                 // Randomize gap for rhythm
-                const gap = 500 + Math.random() * 1000; 
+                const gap = gapBase + Math.random() * gapRandom; 
                 time += gap;
             }
         }
 
-        function handleHit(quality, hitX, hitY) {
-            if (quality === 'perfect') {
+        function handleHit(item, hitX, hitY) {
+            if (item.isBomb) {
+                score = Math.max(0, score - 100); // Prevent negative score? Allow it or clamp to 0. Let's clamp.
+                combo = 0;
+                stats.bomb++;
+                showFeedback("펑!!!", "feedback-boom", hitX, hitY);
+                playBombSound();
+                
+                // Flash screen red
+                const flash = document.createElement('div');
+                flash.style.position = 'absolute';
+                flash.style.top = '0'; flash.style.left = '0'; flash.style.width = '100%'; flash.style.height = '100%';
+                flash.style.backgroundColor = 'rgba(239, 68, 68, 0.4)';
+                flash.style.zIndex = '100';
+                flash.style.pointerEvents = 'none';
+                flash.style.transition = 'opacity 0.3s';
+                document.getElementById('game-container').appendChild(flash);
+                setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 300); }, 100);
+
+            } else {
                 score += 100;
                 combo++;
                 stats.perfect++;
-                showFeedback("PERFECT!", "feedback-perfect", hitX, hitY);
+                showFeedback("냠!", "feedback-perfect", hitX, hitY);
                 playHitSound('perfect');
-            } else if (quality === 'good') {
-                score += 50;
-                combo++;
-                stats.good++;
-                showFeedback("GOOD", "feedback-good", hitX, hitY);
-                playHitSound('good');
             }
             
             if (combo > maxCombo) maxCombo = combo;
             updateUI();
         }
 
-        function handleMiss() {
-            combo = 0;
-            stats.miss++;
-            showFeedback("MISS", "feedback-miss", gameCanvas.width / 2, gameCanvas.height - 100);
-            playMissSound();
-            updateUI();
+        function handleMiss(item) {
+            if (!item.isBomb) {
+                combo = 0;
+                stats.miss++;
+                showFeedback("놓침", "feedback-miss", gameCanvas.width / 2, gameCanvas.height - 100);
+                playMissSound();
+                updateUI();
+            }
+            // If it's a bomb and it passed, it's a successful dodge. No penalty.
         }
 
         function showFeedback(text, className, x, y) {
             feedbackText.textContent = text;
-            feedbackText.className = `pixel-font ${className}`;
+            feedbackText.className = `cute-font ${className}`;
             
             // UI 요소들은 좌우 반전이 되어있지 않으므로, 화면에 표시할 X 좌표를 반전시켜줍니다.
             const visualX = gameCanvas.clientWidth - (x * (gameCanvas.clientWidth / gameCanvas.width));
@@ -709,22 +803,22 @@
                         const distance = Math.hypot(note.x - currentMouthX, note.y - currentMouthY);
                         if (distance < CATCH_RADIUS) {
                             note.hit = true;
-                            
-                            // Perfect if caught very close to center
-                            if (distance < CATCH_RADIUS * 0.4) {
-                                handleHit('perfect', note.x, note.y);
-                            } else {
-                                handleHit('good', note.x, note.y);
-                            }
+                            handleHit(note, note.x, note.y);
                         }
                     }
                     
                     // Check for missed notes (went past bottom of screen)
                     if (note.y > gameCanvas.height + 50) {
                         note.active = false; // Mark as missed/inactive
-                        handleMiss();
+                        handleMiss(note);
                     }
                 }
+            }
+
+            // Snapshot Logic (Take picture randomly between 10s and 25s)
+            // 수정됨: 캔버스에 과일이 모두 그려진 '직후'에 캡처하도록 위치를 이동했습니다!
+            if (!snapshotTaken && elapsedTime > snapshotTime && isFaceDetected) {
+                takeSnapshot();
             }
             
             // Check End Game Condition
@@ -736,23 +830,57 @@
             animationId = requestAnimationFrame(gameLoop);
         }
 
-        function startGame() {
-            initAudio(); // Require user gesture to start audio
+        function takeSnapshot() {
+            snapshotTaken = true;
             
+            // Visual flash for camera shutter
+            const flash = document.createElement('div');
+            flash.style.position = 'absolute';
+            flash.style.top = '0'; flash.style.left = '0'; flash.style.width = '100%'; flash.style.height = '100%';
+            flash.style.backgroundColor = 'white';
+            flash.style.zIndex = '999';
+            flash.style.pointerEvents = 'none';
+            flash.style.transition = 'opacity 0.5s';
+            document.getElementById('game-container').appendChild(flash);
+
+            setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 500); }, 50);
+
+            // Draw to hidden canvas
+            const snapCanvas = document.createElement('canvas');
+            snapCanvas.width = videoElement.videoWidth;
+            snapCanvas.height = videoElement.videoHeight;
+            const snapCtx = snapCanvas.getContext('2d');
+            
+            // Mirror video just like display
+            snapCtx.translate(snapCanvas.width, 0);
+            snapCtx.scale(-1, 1);
+            snapCtx.drawImage(videoElement, 0, 0, snapCanvas.width, snapCanvas.height);
+            
+            // Overlay game items so they see what they were eating
+            snapCtx.drawImage(gameCanvas, 0, 0, snapCanvas.width, snapCanvas.height);
+            
+            snapshotDataUrl = snapCanvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        function startGame() {
             // Reset state
             score = 0;
             combo = 0;
             maxCombo = 0;
-            stats = { perfect: 0, good: 0, miss: 0 };
+            stats = { perfect: 0, bomb: 0, miss: 0 };
+            
+            snapshotTaken = false;
+            snapshotDataUrl = null;
+            // Random time between 10s and 25s
+            snapshotTime = 10000 + Math.random() * 15000;
+            
             updateUI();
             
             // Ensure canvas sizes are set
             gameCanvas.width = videoElement.videoWidth || 640;
             gameCanvas.height = videoElement.videoHeight || 480;
             
-            // Setup DOM
-            screens.start.classList.add('hidden');
-            screens.gameOver.classList.add('hidden');
+            // Setup DOM (이전의 에러 발생 부분 삭제)
             feedbackText.style.opacity = 0;
             
             // Prepare game
@@ -772,16 +900,138 @@
             // Populate Game Over Screen
             document.getElementById('final-score').textContent = score;
             document.getElementById('stat-perfect').textContent = stats.perfect;
-            document.getElementById('stat-good').textContent = stats.good;
+            document.getElementById('stat-bomb').textContent = stats.bomb;
             document.getElementById('stat-miss').textContent = stats.miss;
             document.getElementById('stat-max-combo').textContent = maxCombo;
             
-            screens.gameOver.classList.remove('hidden');
+            // Handle Snapshot Display
+            const snapContainer = document.getElementById('snapshot-container');
+            if (snapshotDataUrl) {
+                // 폴라로이드 스타일로 사진과 점수를 캔버스에 합성하여 새로운 이미지를 만듭니다!
+                const finalImg = new Image();
+                finalImg.onload = () => {
+                    const compCanvas = document.createElement('canvas');
+                    const padding = 20;
+                    const bottomPadding = 160;
+                    
+                    compCanvas.width = finalImg.width + (padding * 2);
+                    compCanvas.height = finalImg.height + padding + bottomPadding;
+                    const compCtx = compCanvas.getContext('2d');
+                    
+                    // 폴라로이드 배경 (흰색)
+                    compCtx.fillStyle = '#ffffff';
+                    compCtx.fillRect(0, 0, compCanvas.width, compCanvas.height);
+                    
+                    // 기습 캡처 원본 이미지 그리기
+                    compCtx.drawImage(finalImg, padding, padding);
+                    
+                    // 최종 점수 및 통계 텍스트 그리기
+                    compCtx.fillStyle = '#f472b6'; // 핑크색 텍스트
+                    compCtx.font = 'bold 50px Jua, sans-serif';
+                    compCtx.textAlign = 'center';
+                    compCtx.fillText(`과일 냠냠 점수: ${score}점!`, compCanvas.width / 2, finalImg.height + padding + 60);
+                    
+                    compCtx.fillStyle = '#475569';
+                    compCtx.font = '30px Jua, sans-serif';
+                    compCtx.fillText(`퍼펙트: ${stats.perfect} | 폭탄 펑: ${stats.bomb} | 콤보: ${maxCombo}`, compCanvas.width / 2, finalImg.height + padding + 110);
+                    
+                    compCtx.fillStyle = '#94a3b8';
+                    compCtx.font = '24px Jua, sans-serif';
+                    compCtx.fillText(`놓친 과일: ${stats.miss}`, compCanvas.width / 2, finalImg.height + padding + 145);
+                    
+                    // 공유/다운로드 할 합성 이미지를 화면에도 적용
+                    snapshotDataUrl = compCanvas.toDataURL('image/jpeg', 0.9);
+                    document.getElementById('snapshot-img').src = snapshotDataUrl;
+                    snapContainer.classList.remove('hidden');
+                };
+                finalImg.src = snapshotDataUrl;
+            } else {
+                snapContainer.classList.add('hidden');
+            }
+            
+            changeScreen(screens.gameOver);
         }
 
-        // Event Listeners
-        startBtn.addEventListener('click', startGame);
-        document.getElementById('restart-btn').addEventListener('click', startGame);
+        // UI Flow Event Listeners
+        window.addEventListener('DOMContentLoaded', () => {
+            const hasConsent = localStorage.getItem('fruitGameConsent');
+            if (hasConsent === 'true') {
+                changeScreen(screens.lobby);
+                initCamera(); // 이미 동의했다면 카메라 미리 로드
+            } else {
+                changeScreen(screens.consent);
+            }
+        });
+
+        document.getElementById('btn-to-difficulty').addEventListener('click', () => {
+            initAudio(); // 게임 진입 전 오디오 컨텍스트 락 풀기
+            changeScreen(screens.difficulty);
+        });
+        
+        document.getElementById('btn-to-help').addEventListener('click', () => {
+            changeScreen(screens.help);
+        });
+        
+        document.getElementById('btn-close-help').addEventListener('click', () => {
+            changeScreen(screens.lobby);
+        });
+
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentDifficulty = e.target.dataset.diff;
+                changeScreen(screens.loading);
+                waitingForFaceToStart = true;
+            });
+        });
+
+        // 접속 후 최초 동의 버튼 클릭 시 (로컬 스토리지에 저장)
+        document.getElementById('btn-agree-start').addEventListener('click', () => {
+            localStorage.setItem('fruitGameConsent', 'true');
+            initAudio(); // 오디오 권한 얻기
+            initCamera(); // 백그라운드에서 카메라 미리 켜두기
+            changeScreen(screens.lobby); // 귀여운 로비로 이동
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            changeScreen(screens.lobby);
+        });
+        
+        // Share/Download Button Logic
+        document.getElementById('share-btn').addEventListener('click', async () => {
+            if (!snapshotDataUrl) {
+                alert("앗! 사진이 찍히지 않았어요 ㅠㅠ");
+                return;
+            }
+            
+            try {
+                // Base64 이미지를 파일(Blob) 형태로 변환
+                const res = await fetch(snapshotDataUrl);
+                const blob = await res.blob();
+                const file = new File([blob], '과일냠냠_인증샷.jpg', { type: 'image/jpeg' });
+
+                const shareData = {
+                    title: '과일 냠냠',
+                    text: `과일 냠냠에서 ${score}점 달성! 🍎🍌 입 벌리고 게임하는 내 모습 ㅋㅋㅋ`,
+                    files: [file]
+                };
+
+                // 기기에서 파일 공유 기능을 지원하는지 확인 (모바일 환경 등)
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share(shareData);
+                } else {
+                    // PC 등 공유 API 미지원 브라우저인 경우 기존처럼 다운로드로 대체
+                    const link = document.createElement('a');
+                    link.download = `과일냠냠_${score}점.jpg`;
+                    link.href = snapshotDataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    alert("공유하기를 지원하지 않는 브라우저라 기기에 저장했습니다!");
+                }
+            } catch (err) {
+                console.log('Share canceled or failed:', err);
+            }
+        });
         
         // Handle window resize
         window.addEventListener('resize', () => {
