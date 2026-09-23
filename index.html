@@ -406,6 +406,8 @@
         let isFaceDetected = false;
         let isGameRunning = false;
         let isMouthOpen = false;
+        let currentMouthOpenness = 0; // 추가: 입 벌림 정도 저장
+        let isSharing = false; // 추가: 중복 공유 방지용 플래그
         let currentMouthX = 0;
         let currentMouthY = 0;
         let score = 0;
@@ -532,6 +534,7 @@
                 
                 // Normalize by face height so distance from camera doesn't matter as much
                 const normalizedMouthOpen = lipDistance / faceHeight;
+                currentMouthOpenness = normalizedMouthOpen; // 현재 입 벌림 정도 실시간 갱신
                 
                 const wasMouthOpen = isMouthOpen;
                 isMouthOpen = normalizedMouthOpen > MOUTH_OPEN_THRESHOLD;
@@ -812,6 +815,20 @@
                         if (distance < CATCH_RADIUS) {
                             note.hit = true;
                             handleHit(note, note.x, note.y);
+                            
+                            // --- 업그레이드된 기습 캡처 로직 ---
+                            if (!snapshotTaken && elapsedTime > snapshotTime && !note.isBomb) {
+                                // 조건 1: 과일이 화면 중심에서 꽤 멀리 떨어져 있을 때 (목을 길게 빼는 우스꽝스러운 자세 유도)
+                                const distanceFromCenter = Math.abs(note.x - (gameCanvas.width / 2));
+                                const isFarFromCenter = distanceFromCenter > (gameCanvas.width * 0.25); 
+                                
+                                // 조건 2: 입을 평소보다 엄청 크게 벌렸을 때 (기준치 1.5배 이상)
+                                const isMouthWideOpen = currentMouthOpenness > (MOUTH_OPEN_THRESHOLD * 1.5);
+                                
+                                if (isFarFromCenter || isMouthWideOpen) {
+                                    takeSnapshot();
+                                }
+                            }
                         }
                     }
                     
@@ -823,12 +840,6 @@
                 }
             }
 
-            // Snapshot Logic
-            // 수정됨: 지정된 시간 이후에 플레이어가 '입을 벌렸을 때(isMouthOpen)' 기습 캡처! ㅋㅋㅋ
-            if (!snapshotTaken && elapsedTime > snapshotTime && isFaceDetected && isMouthOpen) {
-                takeSnapshot();
-            }
-            
             // Check End Game Condition
             if (elapsedTime >= TRACK_DURATION) {
                 endGame();
@@ -1005,11 +1016,20 @@
         });
         
         // Share/Download Button Logic
-        document.getElementById('share-btn').addEventListener('click', async () => {
+        document.getElementById('share-btn').addEventListener('click', async (e) => {
             if (!snapshotDataUrl) {
                 alert("앗! 사진이 찍히지 않았어요 ㅠㅠ");
                 return;
             }
+            
+            if (isSharing) return; // 중복 클릭 완벽 방지
+            isSharing = true;
+            
+            const btn = e.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '처리중... 🚀';
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'none';
             
             try {
                 // Base64 이미지를 파일(Blob) 형태로 변환
@@ -1017,9 +1037,12 @@
                 const blob = await res.blob();
                 const file = new File([blob], '과일냠냠_인증샷.jpg', { type: 'image/jpeg' });
 
+                // 공유 텍스트 (맨 끝 줄바꿈 없이 깔끔하게 설정)
+                const shareText = `과일 냠냠에서 ${score}점 달성! 🍎🍌\n입 벌리고 게임하는 내 모습 ㅋㅋㅋ\n👉 플레이하기: https://cherryb29.github.io/FaceTracking/`;
+
                 const shareData = {
                     title: '과일 냠냠',
-                    text: `과일 냠냠에서 ${score}점 달성! 🍎🍌 입 벌리고 게임하는 내 모습 ㅋㅋㅋ`,
+                    text: shareText,
                     files: [file]
                 };
 
@@ -1027,17 +1050,32 @@
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     await navigator.share(shareData);
                 } else {
-                    // PC 등 공유 API 미지원 브라우저인 경우 기존처럼 다운로드로 대체
+                    // PC 등 공유 API 미지원 브라우저인 경우 기존처럼 다운로드 및 클립보드 복사
                     const link = document.createElement('a');
                     link.download = `과일냠냠_${score}점.jpg`;
                     link.href = snapshotDataUrl;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    alert("공유하기를 지원하지 않는 브라우저라 기기에 저장했습니다!");
+                    
+                    // 텍스트 클립보드 자동 복사
+                    const textarea = document.createElement('textarea');
+                    textarea.value = shareText;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    
+                    alert("기기에 사진이 저장되고 링크가 복사되었습니다! 친구들에게 붙여넣기 해보세요!");
                 }
             } catch (err) {
                 console.log('Share canceled or failed:', err);
+            } finally {
+                // 쿨타임 및 버튼 복구
+                isSharing = false;
+                btn.innerHTML = originalText;
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
             }
         });
         
