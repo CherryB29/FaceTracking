@@ -34,14 +34,22 @@
             position: relative;
             width: 100vw;
             max-width: 600px;
-            height: 100vh;
-            max-height: 800px;
+            /* 높이를 화면 꽉 차게 하되, 너무 길어지지 않게 조정 */
+            height: 100dvh; 
+            max-height: 1000px;
             background-color: #fff1f2; /* 화사한 배경 */
             box-shadow: 0 0 30px rgba(244, 114, 182, 0.3);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            border-radius: 20px;
+            border-radius: 0; /* 모바일이나 태블릿에서 꽉 찰 때는 둥근 모서리 제거 */
+        }
+        
+        @media (min-width: 640px) {
+            #game-container {
+                height: 90vh;
+                border-radius: 20px;
+            }
         }
 
         #video-container {
@@ -52,12 +60,16 @@
             height: 100%;
             z-index: 0;
             opacity: 0.6; /* 카메라를 좀 더 밝게 */
+            /* 비디오가 컨테이너를 꽉 채우도록 설정 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover; /* 비율을 유지하면서 꽉 채우기 */
             transform: scaleX(-1); /* Mirror effect */
         }
 
@@ -811,9 +823,9 @@
                 }
             }
 
-            // Snapshot Logic (Take picture randomly between 10s and 25s)
-            // 수정됨: 캔버스에 과일이 모두 그려진 '직후'에 캡처하도록 위치를 이동했습니다!
-            if (!snapshotTaken && elapsedTime > snapshotTime && isFaceDetected) {
+            // Snapshot Logic
+            // 수정됨: 지정된 시간 이후에 플레이어가 '입을 벌렸을 때(isMouthOpen)' 기습 캡처! ㅋㅋㅋ
+            if (!snapshotTaken && elapsedTime > snapshotTime && isFaceDetected && isMouthOpen) {
                 takeSnapshot();
             }
             
@@ -867,8 +879,8 @@
             
             snapshotTaken = false;
             snapshotDataUrl = null;
-            // Random time between 10s and 25s
-            snapshotTime = 10000 + Math.random() * 15000;
+            // 수정됨: 8초~15초 사이 이후에 입을 벌리는 순간 찰칵!
+            snapshotTime = 8000 + Math.random() * 7000;
             
             updateUI();
             
